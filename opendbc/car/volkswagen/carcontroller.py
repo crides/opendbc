@@ -107,7 +107,7 @@ class CarController(CarControllerBase, IntelligentCruiseButtonManagementInterfac
                                                                      [self.CCP.STEERING_POWER_MAX, self.CCP.STEERING_POWER_MIN]))
           target_power = int(np.interp(CS.out.vEgo, [0., 0.5], [self.CCP.STEERING_POWER_MIN, target_power_driver]))
           steering_power = min(max(target_power, min_power), max_power)
-          
+
         else:
           if self.steering_power_last > 0: # keep HCA alive until steering power has reduced to zero
             hca_enabled = True
@@ -121,7 +121,7 @@ class CarController(CarControllerBase, IntelligentCruiseButtonManagementInterfac
         can_sends.append(self.CCS.create_steering_control(self.packer_pt, self.CAN.pt, apply_curvature, hca_enabled, steering_power))
         self.apply_curvature_last = apply_curvature
         self.steering_power_last = steering_power
-        
+
       else:
         # Logic to avoid HCA state 4 "refused":
         #   * Don't steer unless HCA is in state 3 "ready" or 5 "active"
@@ -131,12 +131,12 @@ class CarController(CarControllerBase, IntelligentCruiseButtonManagementInterfac
         #   * Don't send uninterrupted steering for > 360 seconds
         # MQB racks reset the uninterrupted steering timer after a single frame
         # of HCA disabled; this is done whenever output happens to be zero.
-        
+
         apply_torque = 0
         if CC.latActive:
           new_torque = int(round(actuators.torque * self.CCP.STEER_MAX))
           apply_torque = apply_driver_steer_torque_limits(new_torque, self.apply_torque_last, CS.out.steeringTorque, self.CCP)
-        
+
         apply_torque = self.hca_mitigation.update(apply_torque, self.apply_torque_last)
         hca_enabled = apply_torque != 0
         self.apply_torque_last = apply_torque
@@ -174,17 +174,17 @@ class CarController(CarControllerBase, IntelligentCruiseButtonManagementInterfac
         left_blinker = CC.leftBlinker if not blinker_active else False
         right_blinker = CC.rightBlinker if not blinker_active else False
         can_sends.append(mebcan.create_blinker_control(self.packer_pt, self.CAN.pt, CS.ea_hud_stock_values, CS.ea_control_stock_values, left_blinker, right_blinker, self.hide_ea_error))
-    
+
     # **** Acceleration Controls ******************************************** #
-    
+
     if self.frame % self.CCP.ACC_CONTROL_STEP == 0 and self.CP.openpilotLongitudinalControl and not CS.out.radarDisableFailed:
       stopping = actuators.longControlState == LongCtrlState.stopping
-        
+
       if self.CP.flags & (VolkswagenFlags.MEB | VolkswagenFlags.MQB_EVO):
         # Logic to prevent car error with EPB:
         #   * send a few frames of HMS RAMP RELEASE command at the very begin of long override and right at the end of active long control -> clean exit of ACC car controls
         #   * (1 frame of HMS RAMP RELEASE is enough, but lower the possibility of panda safety blocking it)
-        
+
         # AEB fallback: when stock AEB is active, always send inactive accel to allow stock system takeover
         long_active = CC.enabled and not CS.out.stockAeb
         starting = actuators.longControlState == LongCtrlState.starting and CS.out.vEgo <= self.CP.vEgoStarting # openpilot sets starting state after overriding, ensure being in range
@@ -201,20 +201,20 @@ class CarController(CarControllerBase, IntelligentCruiseButtonManagementInterfac
         if CC.longComfortMode:
           self.long_jerk_control.update(long_active, long_override, hud_control.leadDistance, hud_control.leadVisible, accel, critical_state)
           self.long_limit_control.update(long_active, CS.out.vEgoRaw, hud_control.setSpeed, hud_control.leadDistance, hud_control.leadVisible, critical_state)
-          
-        acc_control = self.CCS.acc_control_value(CS.out.cruiseState.available, CS.out.accFaulted, long_active, long_override)          
+
+        acc_control = self.CCS.acc_control_value(CS.out.cruiseState.available, CS.out.accFaulted, long_active, long_override)
         acc_hold_type = self.CCS.acc_hold_type(CS.out.cruiseState.available, CS.out.accFaulted, long_active, starting, stopping,
                                                CS.esp_hold_confirmation, long_override, long_override_begin, long_disabling)
         can_sends.extend(self.CCS.create_acc_accel_control(self.packer_pt, self.CAN.pt, self.CP, CS.acc_type, long_active,
                                                            self.long_jerk_control.get_jerk_up() if CC.longComfortMode else 4.0, self.long_jerk_control.get_jerk_down() if CC.longComfortMode else 4.0,
                                                            self.long_limit_control.get_upper_limit() if CC.longComfortMode else 0., self.long_limit_control.get_lower_limit() if CC.longComfortMode else 0.,
                                                            accel, acc_control, acc_hold_type, stopping, starting, CS.esp_hold_confirmation,
-                                                           CS.out.vEgoRaw * CV.MS_TO_KPH, long_override, CS.travel_assist_available))
+                                                           CS.out.vEgoRaw * CV.MS_TO_KPH, long_override, CS.travel_assist_available, CS.acc_18_stock_values))
 
       else:
         starting = actuators.longControlState == LongCtrlState.pid and (CS.esp_hold_confirmation or CS.out.vEgo < self.CP.vEgoStopping)
         accel = float(np.clip(actuators.accel, self.CCP.ACCEL_MIN, self.CCP.ACCEL_MAX) if CC.longActive else 0)
-        
+
         acc_control = self.CCS.acc_control_value(CS.out.cruiseState.available, CS.out.accFaulted, CC.longActive)
         can_sends.extend(self.CCS.create_acc_accel_control(self.packer_pt, self.CAN.pt, CS.acc_type, CC.longActive, accel,
                                                              acc_control, stopping, starting, CS.esp_hold_confirmation))
@@ -225,24 +225,24 @@ class CarController(CarControllerBase, IntelligentCruiseButtonManagementInterfac
       #    can_sends.append(self.CCS.create_aeb_control(self.packer_pt, False, False, 0.0))
       #  if self.frame % self.CCP.AEB_HUD_STEP == 0:
       #    can_sends.append(self.CCS.create_aeb_hud(self.packer_pt, False, False))
-        
+
     # **** Radar disable **************************************************** #
     # Send radar replacement messages cruise state relevant
     # Disables Autonomous Emergency Braking (AEB), Front Collision Warning (FCW), Emergency Assist (EA),
     # Predicative Speed Control, (for MQBevo Traffic Sign Detection)
     # Dash warnings for critical deactivations are shown for several seconds
-    
+
     if self.CP.flags & VolkswagenFlags.DISABLE_RADAR and self.CP.openpilotLongitudinalControl and not CS.out.radarDisableFailed:
       if self.CP.flags & (VolkswagenFlags.MEB | VolkswagenFlags.MQB_EVO):
         if self.radar_disabled_warning_timer < 600: # display critical hud warnings for some seconds
           self.radar_disabled_warning_timer += 1
         else:
           self.hide_ea_error = True # block EA error after several seconds
-          
+
         if self.frame % self.CCP.AEB_CONTROL_STEP == 0:
           can_sends.append(make_tester_present_msg(0x700, self.CAN.pt, suppress_response=True)) # Tester Present to keep the programming session
           can_sends.append(self.CCS.create_aeb_control(self.packer_pt, self.CAN.pt, self.CP)) # AEB Control (1 Hz)
-          
+
         if self.frame % self.CCP.AEB_HUD_STEP == 0:
           can_sends.append(self.CCS.create_aeb_hud(self.packer_pt, self.CAN.pt, self.radar_disabled_warning_timer < 600)) # AEB HUD (5 Hz), show deactivation for several seconds
 
@@ -266,31 +266,31 @@ class CarController(CarControllerBase, IntelligentCruiseButtonManagementInterfac
 
     if hud_control.leadDistanceBars != self.lead_distance_bars_last:
       self.distance_bar_frame = self.frame
-    
+
     if self.frame % self.CCP.ACC_HUD_STEP == 0 and self.CP.openpilotLongitudinalControl and not CS.out.radarDisableFailed:
       if self.CP.flags & (VolkswagenFlags.MEB | VolkswagenFlags.MQB_EVO):
         fcw_alert = hud_control.visualAlert == VisualAlert.fcw
         show_distance_bars = self.frame - self.distance_bar_frame < 400
         gap = max(8, CS.out.vEgo * hud_control.leadFollowTime)
         distance = max(8, hud_control.leadDistance) if hud_control.leadDistance != 0 else 0
-        
+
         # AEB fallback: when stock AEB is active, HUD shows inactive state to allow stock system takeover
         long_active = CC.enabled and not CS.out.stockAeb
         acc_hud_status = self.CCS.acc_hud_status_value(CS.out.cruiseState.available, CS.out.accFaulted, long_active,
                                                         CC.cruiseControl.override or CS.out.gasPressed)
-          
+
         sl_predicative_active = True if CC.cruiseControl.speedLimitPredicative and CS.out.cruiseState.speedLimitPredicative != 0 else False
         if CC.cruiseControl.speedLimit and CS.out.cruiseState.speedLimit != 0 and self.speed_limit_last != CS.out.cruiseState.speedLimit:
-          self.speed_limit_changed_timer = self.frame 
+          self.speed_limit_changed_timer = self.frame
         self.speed_limit_last = CS.out.cruiseState.speedLimit
         sl_active = self.frame - self.speed_limit_changed_timer < 400
         speed_limit = CS.out.cruiseState.speedLimitPredicative if sl_predicative_active else (CS.out.cruiseState.speedLimit if sl_active else 0)
-          
+
         acc_hud_event = self.CCS.acc_hud_event(acc_hud_status, CS.esp_hold_confirmation, sl_predicative_active, CS.speed_limit_predicative_type, sl_active)
-          
+
         can_sends.append(self.CCS.create_acc_hud_control(self.packer_pt, self.CAN.pt, acc_hud_status, hud_control.setSpeed * CV.MS_TO_KPH,
                                                          hud_control.leadVisible, hud_control.leadDistanceBars + 1, show_distance_bars,
-                                                         CS.esp_hold_confirmation, distance, gap, fcw_alert, acc_hud_event, speed_limit))
+                                                         CS.esp_hold_confirmation, distance, gap, fcw_alert, acc_hud_event, speed_limit, CS.acc_19_stock_values))
 
       else:
         lead_distance = 0

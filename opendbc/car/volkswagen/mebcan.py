@@ -23,7 +23,7 @@ ACC_HUD_ACTIVE   = 3
 ACC_HUD_ENABLED  = 2
 ACC_HUD_DISABLED = 0
 
-  
+
 def create_steering_control(packer, bus, apply_curvature, lkas_enabled, power):
   values = {
     "Curvature": abs(apply_curvature), # in rad/m
@@ -85,7 +85,7 @@ def create_blinker_control(packer, bus, ea_hud_stock_values, ea_control_stock_va
 
 def create_lka_hud_control(packer, bus, CP, ldw_stock_values, lat_active, steering_pressed, hud_alert, hud_control, sound_alert):
   display_mode = 1 if lat_active and not (CP.flags & VolkswagenFlags.CLUSTER_NO_TA_LANES) else 0 # travel assist style showing yellow lanes when op is active
-  
+
   values = {}
   if len(ldw_stock_values):
     values = {s: ldw_stock_values[s] for s in [
@@ -105,7 +105,7 @@ def create_lka_hud_control(packer, bus, CP, ldw_stock_values, lat_active, steeri
     "LDW_Texte": hud_alert,
   })
   return packer.make_can_msg("LDW_02", bus, values)
-  
+
 
 def create_acc_buttons_control(packer, bus, gra_stock_values, cancel=False, resume=False, up=False, down=False):
   values = {s: gra_stock_values[s] for s in [
@@ -144,7 +144,7 @@ def create_capacitive_wheel_touch(packer, bus, lat_active, klr_stock_values):
       "KLR_Touchauswertung": 10,
     })
   return packer.make_can_msg("KLR_01", bus, values)
-  
+
 
 def acc_control_value(main_switch_on, acc_faulted, long_active, override):
 
@@ -189,7 +189,7 @@ def acc_hold_type(main_switch_on, acc_faulted, long_active, starting, stopping, 
 
 
 def create_acc_accel_control(packer, bus, CP, acc_type, acc_enabled, upper_jerk, lower_jerk, upper_control_limit, lower_control_limit,
-                             accel, acc_control, acc_hold_type, stopping, starting, esp_hold, speed, override, travel_assist_available):
+                             accel, acc_control, acc_hold_type, stopping, starting, esp_hold, speed, override, travel_assist_available, acc_18):
   # active longitudinal control disables one pedal driving (regen mode) while using overriding mechnism
   # error mitigation when stopping or stopped: (newer gen cars can be very sensitive)
   # - send 0 m stopping distance for cars in kind of parameterized stopping mode (stopping accel -0.2 seen for those cars)
@@ -215,7 +215,7 @@ def create_acc_accel_control(packer, bus, CP, acc_type, acc_enabled, upper_jerk,
       acceleration = accel
   else:
     acceleration = ACCEL_INACTIVE # inactive accel
-  
+
   values = {
     "ACC_Typ":                    acc_type,
     "ACC_Status_ACC":             acc_control,
@@ -241,7 +241,7 @@ def create_acc_accel_control(packer, bus, CP, acc_type, acc_enabled, upper_jerk,
       "SET_ME_0x2FE": 0x2FE, # unclear if neccessary
     })
 
-  commands.append(packer.make_can_msg("ACC_18", bus, values))
+  commands.append(packer.make_can_msg("ACC_18", bus, acc_18))
 
   if travel_assist_available:
     # satisfy car to prevent errors when pressing Travel Assist Button
@@ -275,7 +275,7 @@ def acc_hud_status_value(main_switch_on, acc_faulted, long_active, override):
 
 def acc_hud_event(acc_hud_control, esp_hold, speed_limit_predicative, speed_limit_predicative_type, speed_limit):
   acc_event = 0
-  
+
   if esp_hold and acc_hud_control == ACC_HUD_ACTIVE:
     acc_event = 3 # acc ready message at standstill
   elif acc_hud_control in (ACC_HUD_ACTIVE, ACC_HUD_OVERRIDE) and speed_limit_predicative:
@@ -287,19 +287,19 @@ def acc_hud_event(acc_hud_control, esp_hold, speed_limit_predicative, speed_limi
     acc_event = 5 # acc limited by speed limit by camera (recently detected)
 
   return acc_event
-  
+
 
 def get_desired_gap(distance_bars, desired_gap, current_gap_signal):
   # mapping desired gap to correct signal of corresponding distance bar
   gap = 0
-  
+
   if distance_bars == current_gap_signal:
-    gap = desired_gap 
+    gap = desired_gap
 
   return gap
 
 
-def create_acc_hud_control(packer, bus, acc_control, set_speed, lead_visible, distance_bars, show_distance_bars, esp_hold, distance, desired_gap, fcw_alert, acc_event, speed_limit):
+def create_acc_hud_control(packer, bus, acc_control, set_speed, lead_visible, distance_bars, show_distance_bars, esp_hold, distance, desired_gap, fcw_alert, acc_event, speed_limit, acc_19):
 
   values = {
     "ACC_Status_ACC":                acc_control,
@@ -334,12 +334,12 @@ def create_acc_hud_control(packer, bus, acc_control, set_speed, lead_visible, di
     "SET_ME_0X7FFF":                 0x7FFF, # unknown
   }
 
-  return packer.make_can_msg("ACC_19", bus, values)
-  
-  
+  return packer.make_can_msg("ACC_19", bus, acc_19)
+
+
 def create_aeb_control(packer, bus, CP):
   # default inactive values basically present for every plattform (MEB Gen 1/2, MQBevo Gen 1)
-  
+
   values = {
     "SET_ME_126":         126,
     "SET_ME_30":          30,
@@ -356,7 +356,7 @@ def create_aeb_control(packer, bus, CP):
     values.update({
       "SET_ME_1": 1,
     })
-  
+
   return packer.make_can_msg("AWV_03", bus, values)
 
 
@@ -367,7 +367,7 @@ def create_aeb_hud(packer, bus, disabled):
     "SET_ME_1":     1,
     "SET_ME_511":   511,
   }
-  
+
   return packer.make_can_msg("MEB_AWV_01", bus, values)
 
 
