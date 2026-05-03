@@ -255,7 +255,7 @@ class CarState(CarStateBase, MadsCarState):
   def update_meb(self, pt_cp, cam_cp, alt_cp, ext_cp) -> tuple[structs.CarState, structs.CarStateSP]:
     ret = structs.CarState()
     ret_sp = structs.CarStateSP()
-    
+
     # Update vehicle speed and acceleration from ABS wheel speeds.
     self.parse_wheel_speeds(ret,
       pt_cp.vl["ESC_51"]["VL_Radgeschw"],
@@ -278,16 +278,16 @@ class CarState(CarStateBase, MadsCarState):
     ret.steeringPressed  = abs(ret.steeringTorque) > self.CCP.STEER_DRIVER_ALLOWANCE
     ret.steeringSlightlyPressed = abs(ret.steeringTorque) > self.CCP.STEER_DRIVER_SLIGHT_PRESS
     ret.steeringCurvature = -pt_cp.vl["QFK_01"]["Curvature"] * (1, -1)[int(pt_cp.vl["QFK_01"]["Curvature_VZ"])]
-    
+
     ret.yawRate = -pt_cp.vl["ESC_50"]["Yaw_Rate"] * (1, -1)[int(pt_cp.vl["ESC_50"]["Yaw_Rate_Sign"])] * CV.DEG_TO_RAD
-    
+
     # Update gear and/or clutch position data.
     if self.CP.flags & VolkswagenFlags.ALT_GEAR:
       ret.gearShifter = self.parse_gear_shifter(self.CCP.shifter_values.get(pt_cp.vl["Gateway_73"]["GE_Fahrstufe"], None)) # (candidate for all plattforms MEB and MQB evo)
     else:
       ret.gearShifter = self.parse_gear_shifter(self.CCP.shifter_values.get(pt_cp.vl["Getriebe_11"]["GE_Fahrstufe"], None))
     drive_mode = ret.gearShifter == GearShifter.drive
-    
+
     hca_status = self.CCP.hca_status_values.get(pt_cp.vl["QFK_01"]["LatCon_HCA_Status"])
     hca_status_fluctuation = self.update_hca_status_watchdog(hca_status) if not (self.CP.flags & VolkswagenFlags.STOCK_HCA_PRESENT) else False
     ret.steerFaultTemporary, ret.steerFaultPermanent, ret.steerFaultWarning = self.update_hca_state(
@@ -317,7 +317,7 @@ class CarState(CarStateBase, MadsCarState):
 
     # Update seatbelt fastened status.
     ret.seatbeltUnlatched = pt_cp.vl["Airbag_02"]["AB_Gurtschloss_FA"] != 3
-    
+
     # Consume blind-spot monitoring info/warning LED states, if available.
     # Infostufe: BSM LED on, Warnung: BSM LED flashing
     if self.CP.enableBsm:
@@ -360,7 +360,7 @@ class CarState(CarStateBase, MadsCarState):
       # for hold detection: VMM_02 ESP_Hold Signal is off timing and probably wrong
       # use a motion state signal instead for now
       self.esp_hold_confirmation = pt_cp.vl["ESC_50"]["Motion_State"] == 3 # full stop
-      
+
     ret.cruiseState.standstill = self.CP.pcmCruise and self.esp_hold_confirmation
 
     # Update ACC setpoint. When the setpoint is zero or there's an error, the
@@ -386,7 +386,7 @@ class CarState(CarStateBase, MadsCarState):
     self.speed_limit_predicative_type = self.speed_limit_mgr.get_speed_limit_predicative_type()
 
     ret_sp.speedLimit = ret.cruiseState.speedLimit
-    
+
     # Update button states for turn signals and ACC controls, capture all ACC button state/config for passthrough
     # turn signal effect
     self.left_blinker_active  = bool(pt_cp.vl["Blinkmodi_02"]["BM_links"])
@@ -401,9 +401,9 @@ class CarState(CarStateBase, MadsCarState):
     main_cruise_latching = not bool(pt_cp.vl["GRA_ACC_01"]["GRA_Typ_Hauptschalter"])
     buttons = self.CCP.BUTTONS_ALT if main_cruise_latching else self.CCP.BUTTONS
     ret.buttonEvents = self.create_button_events(pt_cp, buttons)
-    
+
     self.gra_stock_values = pt_cp.vl["GRA_ACC_01"]
-    
+
     # Additional safety checks performed in CarInterface.
     ret.espDisabled = bool(pt_cp.vl["ESP_21"]["ESP_Tastung_passiv"]) # this is also true for ESC Sport mode
     ret.espActive   = bool(pt_cp.vl["ESP_21"]["ESP_Eingriff"])
@@ -413,7 +413,7 @@ class CarState(CarStateBase, MadsCarState):
 
     if self.CP.flags & VolkswagenFlags.MEB:
       ret.fuelGauge = pt_cp.vl["Motor_16"]["MO_Energieinhalt_BMS"]
-      
+
       # EV battery details
       ret.batteryDetails.charge = pt_cp.vl["Motor_16"]["MO_Energieinhalt_BMS"] # battery charge WattHours
       if self.CP.networkLocation == NetworkLocation.gateway:
@@ -423,12 +423,11 @@ class CarState(CarStateBase, MadsCarState):
         ret.batteryDetails.soc          = ret.batteryDetails.charge / ret.batteryDetails.capacity * 100 if ret.batteryDetails.capacity > 0 else 0 # battery SoC in percent
         ret.batteryDetails.power        = alt_cp.vl["MEB_HVEM_01"]["Engine_Power"] # engine power output
         ret.batteryDetails.temperature  = alt_cp.vl["DCDC_03"]["DC_Temperatur"] # dcdc converter temperature
-      
     MadsCarState.update_mads(self, ret, pt_cp, hca_status)
 
     self.frame += 1
     return ret, ret_sp
-    
+
   def update_mlb(self, pt_cp, cam_cp, ext_cp, alt_cp) -> structs.CarState:
     ret = structs.CarState()
     ret_sp = structs.CarStateSP()
@@ -501,7 +500,7 @@ class CarState(CarStateBase, MadsCarState):
     hca_status = self.CCP.hca_status_values.get(pt_cp.vl["LH_EPS_03"]["EPS_HCA_Status"])
     ret.steerFaultTemporary, ret.steerFaultPermanent, ret.steerFaultWarning = self.update_hca_state(hca_status, drive_mode)
     return
-    
+
   def update_hca_status_watchdog(self, hca_status):
     # On MY2025+ vehicles the steering command path moves to Automotive Ethernet, where it cannot be intercepted here.
     # Detect the resulting fluctuating HCA status so a user-facing warning can be raised.
@@ -523,7 +522,7 @@ class CarState(CarStateBase, MadsCarState):
     warning = drive_mode and hca_watchdog_fail
     temp_fault = (drive_mode and hca_status in ("REJECTED", "PREEMPTED")) or not self.eps_init_complete
     return temp_fault, perm_fault, warning
-    
+
   def update_acc_fault(self, acc_fault, parking_brake=False, drive_mode=True, recovery_frames_max=100):
     # Ignore FAULT when not in drive mode and parked
     # do not show misleading error during ignition in parked state
@@ -579,12 +578,12 @@ class CarState(CarStateBase, MadsCarState):
     if CP.networkLocation == NetworkLocation.fwdCamera:
       if not (CP.flags & VolkswagenFlags.DISABLE_RADAR):
         pt_messages.append(("AWV_03", 1)) # Front Collision Detection (1 Hz when inactive, 50 Hz when active)
-      
+
     cam_messages = []
     if CP.networkLocation == NetworkLocation.gateway:
       if not (CP.flags & VolkswagenFlags.DISABLE_RADAR):
         cam_messages.append(("AWV_03", 1)) # Front Collision Detection (1 Hz when inactive, 50 Hz when active)
-      
+
     return {
       Bus.pt: CANParser(DBC[CP.carFingerprint][Bus.pt], pt_messages, CanBus(CP).pt),
       Bus.cam: CANParser(DBC[CP.carFingerprint][Bus.pt], cam_messages, CanBus(CP).cam),
