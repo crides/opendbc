@@ -157,7 +157,7 @@ class MebLongStateMachine:
 
 
 def create_acc_accel_control(packer, bus, CCP, acc_type, acc_enabled, accel, acc_status, acc_hold_type,
-                             braking_to_stop, leaving_standstill, speed, travel_assist_available):
+                             braking_to_stop, leaving_standstill, speed, travel_assist_available, acc_18):
   # active longitudinal control disables one pedal driving (regen mode) while using overriding mechanism
   # error mitigation when stopping or stopped: (newer gen cars can be very sensitive)
   # - send 0 m stopping distance for cars in kind of parameterized stopping mode (stopping accel -0.2 seen for those cars)
@@ -191,7 +191,7 @@ def create_acc_accel_control(packer, bus, CCP, acc_type, acc_enabled, accel, acc
     "SET_ME_0X9":                 0x9,
   }
 
-  commands.append(packer.make_can_msg("ACC_18", bus, values))
+  commands.append(packer.make_can_msg("ACC_18", bus, acc_18))
 
   if travel_assist_available:
     # satisfy car to prevent errors when pressing Travel Assist Button
@@ -206,7 +206,7 @@ def create_acc_accel_control(packer, bus, CCP, acc_type, acc_enabled, accel, acc
   return commands
 
 
-def create_acc_hud_control(packer, bus, acc_status, set_speed, lead_visible, distance_bars, show_distance_bars, distance, fcw_alert):
+def create_acc_hud_control(packer, bus, acc_status, set_speed, lead_visible, distance_bars, show_distance_bars, distance, fcw_alert, acc_19):
   values = {
     "ACC_Status_ACC":                acc_status,
     "ACC_Tempolimit":                0,
@@ -240,7 +240,7 @@ def create_acc_hud_control(packer, bus, acc_status, set_speed, lead_visible, dis
     "SET_ME_0X7FFF":                 0x7FFF, # unknown
   }
 
-  return packer.make_can_msg("ACC_19", bus, values)
+  return packer.make_can_msg("ACC_19", bus, acc_19)
 
 
 def create_capacitive_wheel_touch(packer, bus, lat_active, klr_stock_values):

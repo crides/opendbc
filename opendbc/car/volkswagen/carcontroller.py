@@ -141,7 +141,8 @@ class CarController(CarControllerBase):
           accel, acc_status, acc_hold_type, braking_to_stop, leaving_standstill = self.meb_long_state.update(CS, CC, accel)
           can_sends.extend(mebcan.create_acc_accel_control(self.packer_pt, self.CAN.pt, self.CCP, CS.acc_type, CC.enabled,
                                                            accel, acc_status, acc_hold_type, braking_to_stop, leaving_standstill,
-                                                           CS.out.vEgoRaw * CV.MS_TO_KPH, CS.travel_assist_available))
+                                                           CS.out.vEgoRaw * CV.MS_TO_KPH, CS.travel_assist_available,
+                                                           CS.acc_18_stock_values))
 
         else:
           stopping = actuators.longControlState == LongCtrlState.stopping
@@ -180,7 +181,7 @@ class CarController(CarControllerBase):
           lead_distance = 8
         can_sends.append(mebcan.create_acc_hud_control(self.packer_pt, self.CAN.pt, self.meb_long_state.acc_status, hud_control.setSpeed * CV.MS_TO_KPH,
                                                        hud_control.leadVisible, hud_control.leadDistanceBars, show_distance_bars,
-                                                       lead_distance, fcw_alert))
+                                                       lead_distance, fcw_alert, CS.acc_19_stock_values))
 
       else:
         lead_distance = 0

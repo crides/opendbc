@@ -19,6 +19,8 @@ class CarState(CarStateBase):
     self.esp_hold_confirmation = False
     self.upscale_lead_car_signal = False
     self.eps_stock_values = False
+    self.acc_18_stock_values = {}
+    self.acc_19_stock_values = {}
     self.acc_type = 0
     self.travel_assist_available = False
     self.curvature_meas = 0.
@@ -316,6 +318,8 @@ class CarState(CarStateBase):
     self.ldw_stock_values = cam_cp.vl["LDW_02"] if self.CP.networkLocation == NetworkLocation.fwdCamera else {}
     self.gra_stock_values = pt_cp.vl["GRA_ACC_01"]
     self.klr_stock_values = pt_cp.vl["KLR_01"] if self.CP.flags & VolkswagenFlags.STOCK_KLR_PRESENT else {}
+    self.acc_18_stock_values = ext_cp.vl["ACC_18"]
+    self.acc_19_stock_values = ext_cp.vl["ACC_19"]
 
     ret.buttonEvents = self.create_button_events(pt_cp, self.CCP.BUTTONS)
     ret.lowSpeedAlert = self.update_low_speed_alert(ret.vEgo)
