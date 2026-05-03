@@ -59,11 +59,12 @@ class CarInterface(CarInterfaceBase):
       ret.lateralTuning.pid.kiV = [0., 0.12]
       ret.lateralTuning.pid.kf = 1.
 
-      if any(msg in fingerprint[1] for msg in (0x520, 0x86, 0xFD, 0x13D)):  # Airbag_02, LWI_01, ESP_21, QFK_01
-        ret.networkLocation = NetworkLocation.gateway
-      else:
-        ret.networkLocation = NetworkLocation.fwdCamera
-        ret.radarUnavailable = True
+      # gateway harness: force gateway network location
+      # if any(msg in fingerprint[1] for msg in (0x520, 0x86, 0xFD, 0x13D)):  # Airbag_02, LWI_01, ESP_21, QFK_01
+      ret.networkLocation = NetworkLocation.gateway
+      # else:
+      #   ret.networkLocation = NetworkLocation.fwdCamera
+      #   ret.radarUnavailable = True
 
       ret.enableBsm = 0x24C in fingerprint[0]  # MEB_Side_Assist_01
 
