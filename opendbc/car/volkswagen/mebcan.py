@@ -299,7 +299,8 @@ def get_desired_gap(distance_bars, desired_gap, current_gap_signal):
 
 def create_acc_hud_control(packer, bus, acc_control, set_speed, lead_visible, distance_bars, show_distance_bars, esp_hold, distance, desired_gap, fcw_alert, acc_event, speed_limit, acc_19):
 
-  values = {
+  values = acc_19
+  values.update({
     "ACC_Status_ACC":                acc_control,
     "ACC_Tempolimit":                map_speed_to_acc_tempolimit(speed_limit) if acc_control in (ACC_HUD_ACTIVE, ACC_HUD_OVERRIDE) else 0, # display speed limits (message type defined by ACC_Events)
     "ACC_Wunschgeschw_02":           set_speed if set_speed < 250 else 327.36,
@@ -326,13 +327,13 @@ def create_acc_hud_control(packer, bus, acc_control, set_speed, lead_visible, di
     "Zeitluecke_5":                  get_desired_gap(distance_bars, desired_gap, 5), # desired distance to lead object for distance bar 5
     "Zeitluecke_Farbe":              1 if acc_control in (ACC_HUD_ENABLED, ACC_HUD_ACTIVE, ACC_HUD_OVERRIDE) else 0, # yellow (1) or white (0) time gap
     "ACC_Anzeige_Zeitluecke":        show_distance_bars if acc_control != ACC_HUD_DISABLED else 0, # show distance bar selection
-    "SET_ME_0X1":                    0x1,    # unknown
-    "SET_ME_0X6A":                   0x6A,   # unknown
-    "SET_ME_0XFFFF":                 0xFFFF, # unknown
-    "SET_ME_0X7FFF":                 0x7FFF, # unknown
-  }
+    # "SET_ME_0X1":                    0x1,    # unknown
+    # "SET_ME_0X6A":                   0x6A,   # unknown
+    # "SET_ME_0XFFFF":                 0xFFFF, # unknown
+    # "SET_ME_0X7FFF":                 0x7FFF, # unknown
+  })
 
-  return packer.make_can_msg("ACC_19", bus, acc_19)
+  return packer.make_can_msg("ACC_19", bus, values)
 
 
 def create_aeb_control(packer, bus, CP):
