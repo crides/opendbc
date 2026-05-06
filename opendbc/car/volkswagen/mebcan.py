@@ -170,7 +170,8 @@ def create_acc_accel_control(packer, bus, CCP, acc_type, acc_enabled, accel, acc
   # ACC_Anhalteweg: when stopping: MEB: values <> 0 the car can execute a hard brake probably if target is too close, MQBEvo: value 0 results in hard brake
   terminal_rollout = 0
 
-  values = {
+  values = acc_18
+  values.update({
     "ACC_Typ":                    acc_type,
     "ACC_Status_ACC":             acc_status,
     "ACC_StartStopp_Info":        acc_enabled,
@@ -186,12 +187,9 @@ def create_acc_accel_control(packer, bus, CCP, acc_type, acc_enabled, accel, acc
     "ACC_Anforderung_HMS":        acc_hold_type,
     "ACC_AKTIV_regelt":           0,  # always zero, stock uses ACC_Status_ACC
     "Speed":                      speed,
-    "SET_ME_0XFE":                0xFE,
-    "SET_ME_0X1":                 0x1,
-    "SET_ME_0X9":                 0x9,
-  }
+  })
 
-  commands.append(packer.make_can_msg("ACC_18", bus, acc_18))
+  commands.append(packer.make_can_msg("ACC_18", bus, values))
 
   if travel_assist_available:
     # satisfy car to prevent errors when pressing Travel Assist Button
