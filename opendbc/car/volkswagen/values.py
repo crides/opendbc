@@ -116,6 +116,9 @@ class CarControllerParams:
       # Longitudinal constants
       self.ACCEL_INACTIVE = 3.01  # m/s^2
       self.JERK_LIMIT = 4.0  # m/s^3
+      # ACC_18 ACC_Anhalteweg while braking to a stop. MEB uses 0; MQBevo hard-brakes (~-2 m/s^2 jolt) on 0.
+      # Stock MQBevo camera sends ~1.05-1.25 m with the hold request.
+      self.STOPPING_DISTANCE = 1.25 if CP.flags & VolkswagenFlags.MQB_EVO else 0.  # m
 
       self.shifter_values = can_define.dv["Getriebe_11"]["GE_Fahrstufe"]
       self.hca_status_values = can_define.dv["QFK_01"]["LatCon_HCA_Status"]

@@ -168,7 +168,7 @@ def create_acc_accel_control(packer, bus, CCP, acc_type, acc_enabled, accel, acc
   commands = []
 
   # ACC_Anhalteweg: when stopping: MEB: values <> 0 the car can execute a hard brake probably if target is too close, MQBEvo: value 0 results in hard brake
-  terminal_rollout = 0
+  terminal_rollout = CCP.STOPPING_DISTANCE
 
   values = acc_18
   values.update({
