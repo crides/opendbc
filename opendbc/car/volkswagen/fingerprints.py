@@ -366,6 +366,11 @@ FW_VERSIONS = {
       b'\xf1\x875Q0907572S \xf1\x890780',
     ],
   },
+  CAR.VOLKSWAGEN_GOLF_MK8: {
+    (Ecu.fwdRadar, 0x757, None): [
+      b'\xf1\x875WA907572C \xf1\x890461',
+    ],
+  },
   CAR.VOLKSWAGEN_ID4_MK1: {
     (Ecu.srs, 0x715, None): [
       b'\xf1\x871EA959655EA\xf1\x890376',
@@ -1094,6 +1099,17 @@ FW_VERSIONS = {
       b'\xf1\x875Q0907572K \xf1\x890402\xf1\x82\x0101',
       b'\xf1\x875Q0907572P \xf1\x890682',
       b'\xf1\x875Q0907572R \xf1\x890771',
+    ],
+  },
+  CAR.SEAT_LEON_MK4: {
+    (Ecu.transmission, 0x7e1, None): [
+      b'\xf1\x870CW906556JA\xf1\x890780',
+    ],
+    (Ecu.srs, 0x715, None): [
+      b'\xf1\x871EA959655CK\xf1\x890166',
+    ],
+    (Ecu.fwdRadar, 0x757, None): [
+      b'\xf1\x875WA907572B \xf1\x890395',
     ],
   },
   CAR.CUPRA_BORN_MK1: {

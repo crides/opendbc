@@ -59,6 +59,10 @@ non_tested_cars = [
   MAZDA.MAZDA_CX5_KE,
   # no public route yet, one user car in Japan
   MAZDA.MAZDA_CX8_2023,
+
+  # MQBevo: ported from fork, no public route yet
+  VOLKSWAGEN.VOLKSWAGEN_GOLF_MK8,
+  VOLKSWAGEN.SEAT_LEON_MK4,
 ]
 
 

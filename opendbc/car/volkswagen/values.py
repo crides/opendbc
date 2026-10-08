@@ -229,6 +229,7 @@ class VolkswagenFlags(IntFlag):
   MLB = 8
   MEB = 16
   MEB_GEN2 = 128
+  MQB_EVO = 256
 
 
 @dataclass
@@ -260,6 +261,18 @@ class VolkswagenMEBPlatformConfig(PlatformConfig):
     self.flags |= VolkswagenFlags.MEB
     if self.flags & VolkswagenFlags.MEB_GEN2:
       self.dbc_dict = {Bus.pt: 'vw_meb_2024_generated', Bus.radar: 'vw_meb_2024_generated'}
+
+
+@dataclass
+class VolkswagenMQBevoPlatformConfig(PlatformConfig):
+  # MQBevo shares the MEB electrical architecture and message set, with a handful of
+  # differently-scaled signals. It is handled as a MEB variant throughout the car port.
+  dbc_dict: DbcDict = field(default_factory=lambda: {Bus.pt: 'vw_mqbevo_generated', Bus.radar: 'vw_mqbevo_generated'})
+  chassis_codes: set[str] = field(default_factory=set)
+  wmis: set[WMI] = field(default_factory=set)
+
+  def init(self):
+    self.flags |= VolkswagenFlags.MEB | VolkswagenFlags.MQB_EVO
 
 
 @dataclass
@@ -322,7 +335,7 @@ class VWCarDocs(CarDocs):
 # FW_VERSIONS for that existing CAR.
 
 class CAR(Platforms):
-  config: VolkswagenMQBPlatformConfig | VolkswagenPQPlatformConfig | VolkswagenMEBPlatformConfig
+  config: VolkswagenMQBPlatformConfig | VolkswagenPQPlatformConfig | VolkswagenMEBPlatformConfig | VolkswagenMQBevoPlatformConfig
 
   VOLKSWAGEN_ARTEON_MK1 = VolkswagenMQBPlatformConfig(
     [
@@ -383,6 +396,12 @@ class CAR(Platforms):
     VolkswagenCarSpecs(mass=1397, wheelbase=2.62),
     chassis_codes={"5G", "AU", "BA", "BE"},
     wmis={WMI.VOLKSWAGEN_MEXICO_CAR, WMI.VOLKSWAGEN_EUROPE_CAR},
+  )
+  VOLKSWAGEN_GOLF_MK8 = VolkswagenMQBevoPlatformConfig(
+    [VWCarDocs("Volkswagen Golf 2021-25")],
+    VolkswagenCarSpecs(mass=1397, wheelbase=2.62),
+    chassis_codes={"CD"},
+    wmis={WMI.VOLKSWAGEN_EUROPE_CAR},
   )
   VOLKSWAGEN_ID4_MK1 = VolkswagenMEBPlatformConfig(
     [
@@ -533,6 +552,12 @@ class CAR(Platforms):
     ],
     VolkswagenCarSpecs(mass=1300, wheelbase=2.64),
     chassis_codes={"5F"},
+    wmis={WMI.SEAT},
+  )
+  SEAT_LEON_MK4 = VolkswagenMQBevoPlatformConfig(
+    [VWCarDocs("SEAT Leon 2021-25")],
+    VolkswagenCarSpecs(mass=1300, wheelbase=2.685),
+    chassis_codes={"KL"},
     wmis={WMI.SEAT},
   )
   CUPRA_BORN_MK1 = VolkswagenMEBPlatformConfig(

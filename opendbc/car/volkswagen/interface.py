@@ -43,8 +43,11 @@ class CarInterface(CarInterfaceBase):
       ret.dashcamOnly = is_release  # Release support needs HCA timeout fix, safety validation, revised J533 harness
 
     elif ret.flags & VolkswagenFlags.MEB:
-      # Set global MEB parameters
-      safety_configs = [get_safety_config(structs.CarParams.SafetyModel.volkswagenMeb)]
+      # Set global MEB parameters. MQBevo shares the MEB message set and is handled as a MEB variant.
+      if ret.flags & VolkswagenFlags.MQB_EVO:
+        safety_configs = [get_safety_config(structs.CarParams.SafetyModel.volkswagenMqbEvo)]
+      else:
+        safety_configs = [get_safety_config(structs.CarParams.SafetyModel.volkswagenMeb)]
       if ret.flags & VolkswagenFlags.MEB_GEN2:
         safety_configs[0].safetyParam |= VolkswagenSafetyFlags.MEB_ALT_CRC.value
 
