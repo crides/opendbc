@@ -187,6 +187,7 @@ BO_ 253 ESP_21: 8 Gateway
  SG_ ESP_Tastung_passiv : 49|1@1+ (1,0) [0|1] "" OTA_FC,ZR_High,ZR_LIMU,ZR_MIB_TOP_ab_Gen3
  SG_ ESP_Systemstatus : 50|1@1+ (1,0) [0|1] "" OTA_FC
  SG_ ASR_Schalteingriff : 51|2@1+ (1,0) [0|3] "" Vector__XXX
+ SG_ ESP_Haltebestaetigung : 53|1@1+ (1,0) [0|1] "" Vector__XXX
  SG_ ESP_QBit_v_Signal : 55|1@1+ (1,0) [0|1] "" ZR_High,ZR_LIMU,ZR_MIB_TOP_ab_Gen3,ZR_Standard
  SG_ ABS_Bremsung : 56|1@1+ (1,0) [0|1] "" OTA_FC,ZR_High,ZR_LIMU,ZR_MIB_TOP_ab_Gen3
  SG_ ASR_Anf : 57|1@1+ (1,0) [0|1] "" ZR_High

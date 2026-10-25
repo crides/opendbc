@@ -284,7 +284,11 @@ class CarState(CarStateBase):
     ret.espActive = bool(pt_cp.vl["ESP_21"]["ESP_Eingriff"])
 
     self.acc_type = ext_cp.vl["ACC_18"]["ACC_Typ"]
-    self.esp_hold_confirmation = bool(pt_cp.vl["ESC_50"]["Standstill"])
+    if self.CP.flags & VolkswagenFlags.MQB_EVO:
+      # ESC_50.Standstill never toggles on MQBevo; ESP_21 bit 53 sets as the car comes to rest under HMS hold
+      self.esp_hold_confirmation = bool(pt_cp.vl["ESP_21"]["ESP_Haltebestaetigung"])
+    else:
+      self.esp_hold_confirmation = bool(pt_cp.vl["ESC_50"]["Standstill"])
     self.travel_assist_available = bool(cam_cp.vl["TA_01"]["Travel_Assist_Available"])
     ret.stockFcw = bool(ext_cp.vl["AWV_03"]["FCW_Active"])
     ret.stockAeb = bool(ext_cp.vl["AWV_03"]["AEB_Active"])
