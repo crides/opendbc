@@ -1,7 +1,7 @@
 from opendbc.car import Bus, structs
 from opendbc.can import CANDefine
 from opendbc.car.common.conversions import Conversions as CV
-from opendbc.car.volkswagen.values import DBC
+from opendbc.car.volkswagen.values import DBC, VolkswagenFlags
 
 LongCtrlState = structs.CarControl.Actuators.LongControlState
 
@@ -68,9 +68,13 @@ ACC_HUD_DISABLED = 0
 
 class MebLongStateMachine:
   HOLD_RELEASE_SPEED = 5 * CV.KPH_TO_MS
+  LAUNCH_SPEED = 0.3  # m/s, MQBevo stock holds ANFAHREN until the car is moving (seen 0.26-0.5 m/s)
 
   def __init__(self, CP, CCP):
     self.CCP = CCP
+    # MQBevo stock: ANFAHREN is held until the car moves (not just until ESP releases the hold),
+    # and ACC_Anfahren is never set
+    self.mqb_evo = bool(CP.flags & VolkswagenFlags.MQB_EVO)
     self.RAMP_FRAMES = 10 // CCP.ACC_CONTROL_STEP  # 100 ms
 
     self.disengage_ramp_counter = 0  # always ramp when disengaging
@@ -121,6 +125,9 @@ class MebLongStateMachine:
         acc_hold_type = self.acc_hold_type_vals['HALTEN']  # stopping/stopped, allowed at any time
       elif starting:
         acc_hold_type = self.acc_hold_type_vals['ANFAHREN']  # resume after reaching full stop
+      elif (self.mqb_evo and self.prev_acc_hold_type == self.acc_hold_type_vals['ANFAHREN'] and
+            CC.actuators.longControlState == LongCtrlState.pid and CS.out.vEgo < self.LAUNCH_SPEED):
+        acc_hold_type = self.acc_hold_type_vals['ANFAHREN']  # keep launching until the car actually moves
       else:
         # After aborting a stop or finishing starting, we need to send RAMP until we hit 5 kph or go long inactive,
         # only if we didn't just re-engage
@@ -148,8 +155,8 @@ class MebLongStateMachine:
     # hold requested but the car hasn't reached standstill yet
     braking_to_stop = requesting_hold and not CS.esp_hold_confirmation
 
-    # driving off from a hold
-    leaving_standstill = acc_hold_type == self.acc_hold_type_vals['ANFAHREN']
+    # driving off from a hold (drives ACC_Anfahren; MQBevo stock never sets it)
+    leaving_standstill = acc_hold_type == self.acc_hold_type_vals['ANFAHREN'] and not self.mqb_evo
 
     self.prev_acc_hold_type = acc_hold_type
     self.acc_status = acc_status
