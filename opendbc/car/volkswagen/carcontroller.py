@@ -138,11 +138,12 @@ class CarController(CarControllerBase):
       if self.frame % self.CCP.ACC_CONTROL_STEP == 0:
         if self.CP.flags & VolkswagenFlags.MEB:
           accel = float(np.clip(actuators.accel, self.CCP.ACCEL_MIN, self.CCP.ACCEL_MAX))
-          accel, acc_status, acc_hold_type, braking_to_stop, leaving_standstill = self.meb_long_state.update(CS, CC, accel)
+          accel, acc_status, acc_hold_type, braking_to_stop, leaving_standstill, stopping_distance = \
+            self.meb_long_state.update(CS, CC, CC_SP, accel)
           can_sends.extend(mebcan.create_acc_accel_control(self.packer_pt, self.CAN.pt, self.CCP, CS.acc_type, CC.enabled,
                                                            accel, acc_status, acc_hold_type, braking_to_stop, leaving_standstill,
                                                            CS.out.vEgoRaw * CV.MS_TO_KPH, CS.travel_assist_available,
-                                                           CS.acc_18_stock_values))
+                                                           CS.acc_18_stock_values, stopping_distance))
 
         else:
           stopping = actuators.longControlState == LongCtrlState.stopping

@@ -69,6 +69,12 @@ ACC_HUD_DISABLED = 0
 class MebLongStateMachine:
   HOLD_RELEASE_SPEED = 5 * CV.KPH_TO_MS
   LAUNCH_SPEED = 0.3  # m/s, MQBevo stock holds ANFAHREN until the car is moving (seen 0.26-0.5 m/s)
+  # MQBevo: after the hold request the car rolls roughly ACC_Anhalteweg on its own, so send the lead gap
+  # minus a margin to keep, picked by personality (leadDistanceBars: 1 aggressive, 2 standard, 3 relaxed)
+  STOP_MARGINS = {1: 1.5, 2: 2.0, 3: 2.5}  # m
+  STOP_MARGIN_DEFAULT = 2.0  # m
+  STOPPING_DISTANCE_MIN = 0.4  # m, smallest value stock sends; 0 causes a hard brake
+  STOPPING_DISTANCE_MAX = 3.0  # m, stock never sends more than 1.25
 
   def __init__(self, CP, CCP):
     self.CCP = CCP
@@ -84,6 +90,7 @@ class MebLongStateMachine:
     self.acc_hold_type_vals = {v: k for k, v in can_define.dv['ACC_18']['ACC_Anforderung_HMS'].items()}
 
     self.prev_acc_hold_type = self.acc_hold_type_vals['KEINE_ANFORDERUNG']  # no request
+    self.stopping_distance = None  # latched ACC_Anhalteweg for the current hold request
     self.acc_status = self.acc_status_vals['ACC_OFF_HAUPTSCHALTER_AUS']  # last acc status, read by HUD msg
 
   def _get_acc_status(self, CS, CC) -> int:
@@ -142,7 +149,14 @@ class MebLongStateMachine:
 
     return acc_hold_type
 
-  def update(self, CS, CC, accel) -> tuple[float, int, int, bool, bool]:
+  def _get_stopping_distance(self, CC, CC_SP) -> float:
+    lead = CC_SP.leadOne
+    if not self.mqb_evo or not lead.status:
+      return self.CCP.STOPPING_DISTANCE
+    margin = self.STOP_MARGINS.get(int(CC.hudControl.leadDistanceBars), self.STOP_MARGIN_DEFAULT)
+    return float(min(max(lead.dRel - margin, self.STOPPING_DISTANCE_MIN), self.STOPPING_DISTANCE_MAX))
+
+  def update(self, CS, CC, CC_SP, accel) -> tuple[float, int, int, bool, bool, float]:
     acc_status = self._get_acc_status(CS, CC)
     acc_hold_type = self._get_hold_type(CS, CC)
 
@@ -155,16 +169,25 @@ class MebLongStateMachine:
     # hold requested but the car hasn't reached standstill yet
     braking_to_stop = requesting_hold and not CS.esp_hold_confirmation
 
+    # latch the stopping distance when the hold starts, so it doesn't shrink as the car rolls toward the lead
+    if braking_to_stop:
+      if self.stopping_distance is None:
+        self.stopping_distance = self._get_stopping_distance(CC, CC_SP)
+    else:
+      self.stopping_distance = None
+    stopping_distance = self.stopping_distance if self.stopping_distance is not None else self.CCP.STOPPING_DISTANCE
+
     # driving off from a hold (drives ACC_Anfahren; MQBevo stock never sets it)
     leaving_standstill = acc_hold_type == self.acc_hold_type_vals['ANFAHREN'] and not self.mqb_evo
 
     self.prev_acc_hold_type = acc_hold_type
     self.acc_status = acc_status
-    return accel, acc_status, acc_hold_type, braking_to_stop, leaving_standstill
+    return accel, acc_status, acc_hold_type, braking_to_stop, leaving_standstill, stopping_distance
 
 
 def create_acc_accel_control(packer, bus, CCP, acc_type, acc_enabled, accel, acc_status, acc_hold_type,
-                             braking_to_stop, leaving_standstill, speed, travel_assist_available, acc_18):
+                             braking_to_stop, leaving_standstill, speed, travel_assist_available, acc_18,
+                             stopping_distance=None):
   # active longitudinal control disables one pedal driving (regen mode) while using overriding mechanism
   # error mitigation when stopping or stopped: (newer gen cars can be very sensitive)
   # - send 0 m stopping distance for cars in kind of parameterized stopping mode (stopping accel -0.2 seen for those cars)
@@ -175,7 +198,7 @@ def create_acc_accel_control(packer, bus, CCP, acc_type, acc_enabled, accel, acc
   commands = []
 
   # ACC_Anhalteweg: when stopping: MEB: values <> 0 the car can execute a hard brake probably if target is too close, MQBEvo: value 0 results in hard brake
-  terminal_rollout = CCP.STOPPING_DISTANCE
+  terminal_rollout = CCP.STOPPING_DISTANCE if stopping_distance is None else stopping_distance
 
   values = acc_18
   values.update({
