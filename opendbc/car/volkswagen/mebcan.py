@@ -75,6 +75,12 @@ class MebLongStateMachine:
   STOP_MARGIN_DEFAULT = 2.0  # m
   STOPPING_DISTANCE_MIN = 0.4  # m, smallest value stock sends; 0 causes a hard brake
   STOPPING_DISTANCE_MAX = 3.0  # m, stock never sends more than 1.25
+  # MQBevo: start the hold request early so the car finishes the stop itself, like stock (~0.63 m/s)
+  HOLD_START_SPEEDS = {1: 0.6, 2: 0.5, 3: 0.4}  # m/s by leadDistanceBars
+  HOLD_START_SPEED_DEFAULT = 0.5  # m/s
+  HOLD_START_ACCEL = -0.2  # m/s^2, planner must be braking to start an early hold
+  HOLD_LEAD_SPEED = 0.5  # m/s, only early-hold behind a lead that is (nearly) stopped
+  HOLD_RELEASE_ACCEL = 0.1  # m/s^2, keep an early hold (and don't launch from it) until the planner wants to go
 
   def __init__(self, CP, CCP):
     self.CCP = CCP
@@ -105,7 +111,19 @@ class MebLongStateMachine:
     else:
       return self.acc_status_vals['ACC_OFF_HAUPTSCHALTER_AUS']  # disabled
 
-  def _get_hold_type(self, CS, CC) -> int:
+  def _early_hold(self, CS, CC, CC_SP) -> bool:
+    if not self.mqb_evo:
+      return False
+    accel = CC.actuators.accel
+    if self.prev_acc_hold_type == self.acc_hold_type_vals['HALTEN']:
+      # already holding: keep it until the planner asks to accelerate (or we're clearly moving again)
+      return accel <= self.HOLD_RELEASE_ACCEL and CS.out.vEgo < self.HOLD_RELEASE_SPEED
+    hold_speed = self.HOLD_START_SPEEDS.get(int(CC.hudControl.leadDistanceBars), self.HOLD_START_SPEED_DEFAULT)
+    lead = CC_SP.leadOne
+    lead_stopped = not lead.status or lead.vLead < self.HOLD_LEAD_SPEED
+    return CS.out.vEgo < hold_speed and accel < self.HOLD_START_ACCEL and lead_stopped
+
+  def _get_hold_type(self, CS, CC, CC_SP) -> int:
     # warning: car is reacting to hold mechanic even with long control off
     # HALTEN -> KEINE_ANFORDERUNG causes the car to fault into park, so both branches below put a ramp in
     # between: disengaging always ramps, and while engaged a release ramps until 5 kph
@@ -113,6 +131,9 @@ class MebLongStateMachine:
     # TODO: camera can send 7 on disengage at a stop which we don't fully understand yet
     stopping = CC.actuators.longControlState == LongCtrlState.stopping
     starting = CC.actuators.longControlState == LongCtrlState.pid and CS.esp_hold_confirmation
+    if self.mqb_evo:
+      # an early hold can confirm before the planner thinks it stopped; only launch when it wants to go
+      starting = starting and CC.actuators.accel > self.HOLD_RELEASE_ACCEL
     long_active = CC.longActive and not CS.out.accFaulted  # catches it one frame earlier, not sure if needed
 
     if not long_active:
@@ -135,6 +156,8 @@ class MebLongStateMachine:
       elif (self.mqb_evo and self.prev_acc_hold_type == self.acc_hold_type_vals['ANFAHREN'] and
             CC.actuators.longControlState == LongCtrlState.pid and CS.out.vEgo < self.LAUNCH_SPEED):
         acc_hold_type = self.acc_hold_type_vals['ANFAHREN']  # keep launching until the car actually moves
+      elif self._early_hold(CS, CC, CC_SP):
+        acc_hold_type = self.acc_hold_type_vals['HALTEN']  # hand the final approach to the car, like stock
       else:
         # After aborting a stop or finishing starting, we need to send RAMP until we hit 5 kph or go long inactive,
         # only if we didn't just re-engage
@@ -158,7 +181,7 @@ class MebLongStateMachine:
 
   def update(self, CS, CC, CC_SP, accel) -> tuple[float, int, int, bool, bool, float]:
     acc_status = self._get_acc_status(CS, CC)
-    acc_hold_type = self._get_hold_type(CS, CC)
+    acc_hold_type = self._get_hold_type(CS, CC, CC_SP)
 
     # transition to inactive accel and jerks as soon as we enter ESP standstill
     requesting_hold = acc_hold_type == self.acc_hold_type_vals['HALTEN']
